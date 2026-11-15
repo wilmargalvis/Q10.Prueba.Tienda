@@ -1,0 +1,6 @@
+@Q10.Prueba.Tienda.Api_HostAddress = http://localhost:5209
+
+GET {{Q10.Prueba.Tienda.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Q10.Prueba.Tienda.Api.Test/Q10.Prueba.Tienda.Api.Test.csproj" />
+  <Project Path="Q10.Prueba.Tienda.Api/Q10.Prueba.Tienda.Api.csproj" />
+  <Project Path="Q10.Prueba.Tienda.Dominio/Q10.Prueba.Tienda.Dominio.csproj" />
+  <Project Path="Q10.Prueba.Tienda.Infraestructura/Q10.Prueba.Tienda.Infraestructura.csproj" />
+</Solution>
