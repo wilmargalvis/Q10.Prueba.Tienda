@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-Q10.Prueba.Inventory.Worker-59b907a0-0abb-469c-9474-0e233699a980</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.24.1-preview.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Q10.Prueba.Inventory.Dominio\Q10.Prueba.Inventory.Dominio.csproj" />
+    <ProjectReference Include="..\Q10.Prueba.Inventory.Infraestructura\Q10.Prueba.Inventory.Infraestructura.csproj" />
+  </ItemGroup>
+</Project>
