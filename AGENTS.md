@@ -17,6 +17,7 @@ Mantenerlas separadas. El Docker Compose de la raíz coordinará los procesos de
 - EF Core 10 con SQL Server.
 - RabbitMQ mediante MassTransit.
 - ASP.NET Core para Orders API y Swagger/OpenAPI.
+- Angular para el frontend.
 - xUnit y Moq para pruebas unitarias.
 - Frontend con polling periódico inicialmente.
 - Dockerfiles independientes y Docker Compose.
@@ -53,18 +54,21 @@ No crear un proyecto separado `Application` para esta prueba. El proyecto llamad
 - Compose ejecuta SQL Server con una base `PruebaQ10Tienda`.
 - Orders es dueño del esquema `Orders`; Inventory es dueño de `Inventory`.
 - Cada servicio mantiene su propio `DbContext` y conjunto de migraciones. Configurar los nombres de esquema explícitamente en EF.
-- No consultar tablas del otro esquema para implementar el flujo distribuido; intercambiar contratos de mensajes.
+- Configurar para cada contexto una tabla de historial de migraciones distinta dentro de su esquema (por ejemplo `Orders.__EFMigrationsHistory` e `Inventory.__EFMigrationsHistory`), evitando que los contextos compartan la tabla predeterminada de `dbo`.
+- Orders puede consultar solo en modo lectura el dato/tabla de Inventory que contiene el catálogo de SKU, exclusivamente para validar que el SKU existe al crear un pedido. Mantener esa consulta detrás de una abstracción de lectura en Orders Infraestructura. Orders nunca modifica Inventory ni decide la reserva.
+- Inventory sigue siendo el único dueño de escrituras de productos/stock y el único que decide si descuenta existencias. El consumidor debe volver a comprobar SKU y cantidad disponible al procesar `OrderCreated`.
 - No crear claves foráneas entre los esquemas como sustituto de la comunicación entre servicios.
 - Usar PK, `UNIQUE`, `CHECK` e índices apropiados para reforzar invariantes. Evitar índices duplicados y procedimientos almacenados sin una razón medible.
-- La base compartida es un trade-off consciente del ejercicio y debe permanecer documentada; no describirla como aislamiento completo de microservicios.
+- La base compartida y la lectura de catálogo desde Orders son trade-offs conscientes de simplicidad y deben documentarse. No describirlos como aislamiento completo de microservicios. En una evolución con mayor independencia, sustituir la lectura de tabla por un contrato de catálogo entre servicios y separar las bases.
 
 ## Migraciones, scripts y seed
 
 - Las migraciones EF Core son la única fuente de verdad del esquema de tablas.
 - Generar desde ellas SQL idempotente para despliegue/inspección; no modificar a mano scripts generados para reflejar cambios de modelo.
 - Mantener aparte `01_CreateDatabase.sql`, el bootstrap SQL mínimo que crea la base `PruebaQ10Tienda` si aún no existe.
-- Generar/versionar scripts SQL idempotentes desde las migraciones, por ejemplo `02_OrdersSchema.sql` y `03_InventorySchema.sql`. No editar manualmente el SQL generado para reflejar cambios de modelo.
-- Compose debe esperar al healthcheck de SQL Server y ejecutar un inicializador que aplique primero `01_CreateDatabase.sql` y después los scripts de Orders e Inventory antes de iniciar API y Worker.
+- Mantener `02_CreateSchemas.sql` como bootstrap idempotente de los esquemas Orders e Inventory.
+- Generar/versionar scripts SQL idempotentes desde las migraciones, por ejemplo `03_OrdersSchema.sql` y `04_InventorySchema.sql`. No editar manualmente el SQL generado para reflejar cambios de modelo.
+- Compose debe permitir el comando de aceptación exacto `docker compose up`; declarar `build:` para que se creen imágenes en un checkout limpio. Puede documentarse `--build` como opción para forzar la reconstrucción. Compose debe esperar al healthcheck de SQL Server y ejecutar un inicializador que aplique `01_CreateDatabase.sql`, `02_CreateSchemas.sql` y después los scripts de Orders e Inventory antes de iniciar API y Worker.
 - El seed de productos es responsabilidad de Inventory y debe ser idempotente: solo inicializa productos faltantes en una base nueva, nunca restablece saldos existentes. No crear un script `04_InsertData.sql` en paralelo si el seed se hace en código.
 - Versionar cualquier script generado con un nombre claro y actualizarlo junto con la migración que lo produce.
 - Documentar cómo reconstruir scripts y cómo borrar el volumen Compose para empezar desde cero.
@@ -84,8 +88,13 @@ No crear un proyecto separado `Application` para esta prueba. El proyecto llamad
 
 - Mantener `POST /orders`, `GET /orders` y `GET /orders/{id}` según `requisitos.md`.
 - Validar nombre no vacío, SKU existente y cantidad entre 1 y 100.
+- No ampliar la lectura cruzada de Orders a otras tablas/campos de Inventory, ni permitir escrituras desde Orders. La excepción se limita a existencia del SKU.
 - Devolver `201` al crear el pedido `Pending`; no esperar sincrónicamente a Inventory.
 - Los errores de validación deben ser claros tanto en HTTP como en el formulario.
+- Envolver respuestas JSON de Orders en `ApiResponse<T>` con `IsSuccess`, `Result`, `Message`, `StatusCode` y `Errors`, siguiendo el modelo indicado por el usuario. Mantener el código HTTP de transporte correcto y coherente con `StatusCode`; no convertir errores HTTP en respuestas 200.
+- Representar errores como objetos `ApiError` con `Message` y `ErrorCode`; agregar `Field` opcional para que Angular pueda asociar validaciones con controles del formulario. Los DTOs de API no son entidades de Dominio ni de EF.
+- En Angular, separar componentes de formulario y listado, mantener llamadas HTTP en un servicio tipado por feature y estados explícitos de carga/éxito/error. Preferir estado local con Signals y RxJS/HttpClient; no añadir NgRx u otra store global para esta prueba.
+- Mostrar errores de campo en el formulario y errores de red/servidor como mensajes visibles. Angular debe leer el cuerpo `ApiResponse` tanto de respuestas exitosas como de `HttpErrorResponse` no exitosas.
 - El panel refresca estados con polling y consulta la API como fuente de verdad. Esta decisión satisface el enunciado y reduce el tiempo y costo de implementación para una entrega de 24 horas: evita conexiones persistentes, configuración de hubs y trabajo adicional de reconexión e integración. La carga periódica es aceptable para el volumen pequeño de la prueba; explicar que introduce una demora de hasta un intervalo de polling y consultas aunque nada cambie. No introducir SignalR salvo que se complete el alcance obligatorio y el usuario decida que queda tiempo.
 
 ## Configuración y seguridad básica

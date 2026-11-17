@@ -1,74 +1,111 @@
-<main class="page-shell">
-  <header class="hero">
-    <div>
-      <p class="eyebrow">Q10 · OrderFlow</p>
-      <h1>Pedidos de la tienda</h1>
-      <p class="subtitle">Registra un pedido y sigue la reserva del inventario.</p>
+<div class="app-frame">
+  <header class="topbar">
+    <a class="brand-lockup" href="/" aria-label="Q10 OrderFlow, inicio">
+      <img src="assets/q10-logo.png" alt="Q10" class="brand-logo">
+      <span class="brand-divider" aria-hidden="true"></span>
+      <span class="brand-product">OrderFlow <small>TIENDA DEMO</small></span>
+    </a>
+    <div class="topbar-meta">
+      <span class="workspace-label">Gestión de pedidos</span>
+      <span class="live-pill" aria-label="Actualización automática cada 5 segundos"><span class="live-dot" aria-hidden="true"></span><span>Actualización cada 5 s</span></span>
     </div>
-    <span class="live-pill"><span></span> Actualización cada 5 s</span>
   </header>
 
-  <section class="layout">
-    <article class="panel form-panel">
-      <div class="section-heading">
-        <div><p class="eyebrow">Nuevo registro</p><h2>Crear pedido</h2></div>
-        <span class="step-number">01</span>
+  <main class="page-shell">
+    <section class="page-heading" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow"><span class="eyebrow-line"></span> OPERACIÓN DE TIENDA</p>
+        <h1 id="page-title">Pedidos <span>simples.</span><br>Inventario al día.</h1>
+        <p class="subtitle">Registra una compra y sigue su validación de inventario en un solo lugar.</p>
       </div>
-
-      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-        <label for="clienteNombre">Nombre del cliente</label>
-        <input id="clienteNombre" type="text" formControlName="clienteNombre" placeholder="Ej. Laura Gómez" autocomplete="name">
-        <small class="field-error" *ngIf="form.controls.clienteNombre.touched && form.controls.clienteNombre.invalid">
-          Ingresa el nombre del cliente (máximo 120 caracteres).
-        </small>
-        <small class="field-error" *ngIf="form.controls.clienteNombre.errors?.['api']">{{ form.controls.clienteNombre.errors?.['api'] }}</small>
-
-        <label for="sku">SKU del instrumento</label>
-        <input id="sku" type="text" formControlName="sku" placeholder="Ej. GTR-ACU-001" autocomplete="off">
-        <small class="hint">El código debe existir en el catálogo de inventario.</small>
-        <small class="field-error" *ngIf="form.controls.sku.touched && form.controls.sku.invalid">Ingresa un SKU.</small>
-        <small class="field-error" *ngIf="form.controls.sku.errors?.['api']">{{ form.controls.sku.errors?.['api'] }}</small>
-
-        <label for="cantidad">Cantidad</label>
-        <input id="cantidad" type="number" min="1" max="100" formControlName="cantidad">
-        <small class="hint">Entre 1 y 100 unidades.</small>
-        <small class="field-error" *ngIf="form.controls.cantidad.touched && form.controls.cantidad.invalid">La cantidad debe estar entre 1 y 100.</small>
-        <small class="field-error" *ngIf="form.controls.cantidad.errors?.['api']">{{ form.controls.cantidad.errors?.['api'] }}</small>
-
-        <div class="notice error" role="alert" *ngIf="formMessage()">{{ formMessage() }}</div>
-        <div class="notice success" role="status" *ngIf="formSuccess()">{{ formSuccess() }}</div>
-
-        <button class="primary-button" type="submit" [disabled]="saving()">
-          <span *ngIf="!saving()">Registrar pedido <span aria-hidden="true">→</span></span>
-          <span *ngIf="saving()">Enviando…</span>
-        </button>
-      </form>
-    </article>
-
-    <article class="panel orders-panel">
-      <div class="section-heading">
-        <div><p class="eyebrow">Seguimiento</p><h2>Pedidos recientes</h2></div>
-        <span class="count-badge">{{ orders().length }}</span>
+      <div class="heading-note" aria-label="Seguimiento automático activo">
+        <span class="note-icon" aria-hidden="true">↻</span>
+        <span><strong>Seguimiento automático</strong><small>El estado se actualiza desde Orders API</small></span>
       </div>
+    </section>
 
-      <div class="notice error" role="alert" *ngIf="listError()">{{ listError() }}</div>
-      <div class="loading-state" *ngIf="loading()"><span class="spinner"></span> Cargando pedidos…</div>
-      <div class="empty-state" *ngIf="!loading() && orders().length === 0 && !listError()">
-        <span class="empty-icon">♪</span><strong>Aún no hay pedidos</strong><span>Al crear uno, aparecerá aquí.</span>
-      </div>
-
-      <div class="orders-list" *ngIf="!loading() && orders().length > 0">
-        <div class="order-row" *ngFor="let order of orders(); trackBy: trackOrder">
-          <div class="instrument-mark" aria-hidden="true">♫</div>
-          <div class="order-details">
-            <strong>{{ order.clienteNombre }}</strong>
-            <span>{{ order.sku }} · {{ order.cantidad }} {{ order.cantidad === 1 ? 'unidad' : 'unidades' }}</span>
-            <small>{{ order.creadoEn | date:'short' }}</small>
+    <section class="layout" aria-label="Pedidos de la tienda">
+      <article class="panel form-panel">
+        <div class="section-heading">
+          <div class="heading-copy">
+            <span class="section-kicker">01 <span>·</span> NUEVA SOLICITUD</span>
+            <h2>Crear pedido</h2>
+            <p>Completa los datos para consultar el inventario.</p>
           </div>
-          <span class="status" [ngClass]="order.estado.toLowerCase()">{{ order.estado }}</span>
+          <span class="heading-icon" aria-hidden="true">＋</span>
         </div>
-      </div>
-      <footer class="list-footer">Los estados se consultan automáticamente.</footer>
-    </article>
-  </section>
-</main>
+
+        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <div class="field-group">
+            <label for="clienteNombre">Nombre del cliente <span>Requerido</span></label>
+            <input id="clienteNombre" type="text" formControlName="clienteNombre" placeholder="Ej. Laura Gómez" autocomplete="name">
+            <small class="field-error" *ngIf="form.controls.clienteNombre.touched && form.controls.clienteNombre.invalid">
+              Ingresa el nombre del cliente (máximo 120 caracteres).
+            </small>
+            <small class="field-error" *ngIf="form.controls.clienteNombre.errors?.['api']">{{ form.controls.clienteNombre.errors?.['api'] }}</small>
+          </div>
+
+          <div class="field-group">
+            <label for="sku">Instrumento <span>SKU de catálogo</span></label>
+            <input id="sku" type="text" formControlName="sku" placeholder="Ej. GTR-ACU-001" autocomplete="off" autocapitalize="characters">
+            <small class="field-hint">Disponibles: GTR-ACU-001 · KBD-001 · DRM-001</small>
+            <small class="field-error" *ngIf="form.controls.sku.touched && form.controls.sku.invalid">Ingresa un SKU.</small>
+            <small class="field-error" *ngIf="form.controls.sku.errors?.['api']">{{ form.controls.sku.errors?.['api'] }}</small>
+          </div>
+
+          <div class="field-group quantity-group">
+            <label for="cantidad">Cantidad <span>De 1 a 100 unidades</span></label>
+            <input id="cantidad" type="number" min="1" max="100" formControlName="cantidad">
+            <small class="field-error" *ngIf="form.controls.cantidad.touched && form.controls.cantidad.invalid">La cantidad debe estar entre 1 y 100.</small>
+            <small class="field-error" *ngIf="form.controls.cantidad.errors?.['api']">{{ form.controls.cantidad.errors?.['api'] }}</small>
+          </div>
+
+          <div class="notice error" role="alert" *ngIf="formMessage()">{{ formMessage() }}</div>
+          <div class="notice success" role="status" *ngIf="formSuccess()">{{ formSuccess() }}</div>
+
+          <button class="primary-button" type="submit" [disabled]="saving()">
+            <span *ngIf="!saving()">Registrar pedido <span aria-hidden="true">→</span></span>
+            <span *ngIf="saving()">Enviando…</span>
+          </button>
+          <p class="form-footnote"><span aria-hidden="true">⌁</span> La disponibilidad se confirma al procesar el pedido.</p>
+        </form>
+      </article>
+
+      <article class="panel orders-panel">
+        <div class="section-heading orders-heading">
+          <div class="heading-copy">
+            <span class="section-kicker">02 <span>·</span> ACTIVIDAD</span>
+            <h2>Pedidos recientes</h2>
+            <p>Consulta el avance de cada solicitud.</p>
+          </div>
+          <span class="count-badge" [attr.aria-label]="orders().length + ' pedidos'">{{ orders().length }}</span>
+        </div>
+
+        <div class="notice error" role="alert" *ngIf="listError()">{{ listError() }}</div>
+        <div class="loading-state" *ngIf="loading()"><span class="spinner"></span> Cargando pedidos…</div>
+        <div class="empty-state" *ngIf="!loading() && orders().length === 0 && !listError()">
+          <span class="empty-icon" aria-hidden="true">＋</span>
+          <strong>Aún no hay pedidos</strong>
+          <span>Cuando registres uno, aparecerá aquí.</span>
+        </div>
+
+        <div class="orders-list" *ngIf="!loading() && orders().length > 0">
+          <div class="order-row" *ngFor="let order of orders(); trackBy: trackOrder">
+            <div class="instrument-mark" aria-hidden="true"><span>♫</span></div>
+            <div class="order-details">
+              <strong>{{ order.clienteNombre }}</strong>
+              <span>{{ order.sku }} <i>·</i> {{ order.cantidad }} {{ order.cantidad === 1 ? 'unidad' : 'unidades' }}</span>
+              <small>{{ order.creadoEn | date:'short' }}</small>
+            </div>
+            <span class="status" [ngClass]="order.estado.toLowerCase()">
+              <span class="status-dot" aria-hidden="true"></span>{{ order.estado }}
+            </span>
+          </div>
+        </div>
+        <footer class="list-footer"><span class="footer-pulse"></span> Los estados se consultan automáticamente</footer>
+      </article>
+    </section>
+
+    <footer class="page-footer"><span>Q10 <i>·</i> OrderFlow</span><span>Demostración de flujo de pedidos e inventario</span></footer>
+  </main>
+</div>

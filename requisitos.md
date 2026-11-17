@@ -30,10 +30,35 @@ Este documento recoge los requisitos funcionales del enunciado y las decisiones 
 - Orders consume el resultado de Inventory y cambia el pedido a `Confirmed` o `Rejected`.
 - El procesamiento es asíncrono; la respuesta de creación no espera a la reserva de inventario.
 
+### Contrato de respuesta de Orders API
+
+- Las respuestas JSON de Orders usarán un envoltorio genérico `ApiResponse<T>` basado en el modelo propuesto: `isSuccess`, `result`, `message`, `statusCode` y `errors`.
+- Cada `ApiError` incluirá `message` y `errorCode`; se recomienda agregar `field` opcional para asociar errores de validación a `clienteNombre`, `sku` o `cantidad` en el formulario.
+- El código HTTP real debe corresponder con `statusCode` en el cuerpo. Por ejemplo, crear devuelve HTTP `201` y `statusCode: 201`; una validación inválida devuelve HTTP `400` y `statusCode: 400`. No devolver siempre HTTP 200 para indicar fallos solo dentro del JSON.
+- Los éxitos devolverán `isSuccess: true`; los errores de validación y negocio devolverán `isSuccess: false`, un mensaje útil y errores estructurados cuando existan.
+- Mantener los DTOs de respuesta separados de entidades de Dominio y EF Core.
+
+Ejemplo de error de validación (HTTP 400):
+
+```json
+{
+  "isSuccess": false,
+  "result": null,
+  "message": "La solicitud contiene errores.",
+  "statusCode": 400,
+  "errors": [
+    { "field": "cantidad", "message": "La cantidad debe estar entre 1 y 100.", "errorCode": "ORDER_QUANTITY_INVALID" }
+  ]
+}
+```
+
 ### Panel web
 
+- Implementar el frontend con Angular.
 - Incluir un formulario para crear pedidos con validaciones y errores visibles para el usuario.
 - Incluir una lista de pedidos que muestre el estado actual.
+- Organizar la interfaz por funcionalidad, al menos con componentes diferenciados para página/listado y formulario, un servicio Angular tipado para la API y modelos del cliente (sin compartir ensamblados con el backend).
+- Manejar estado visible de carga, éxito, error y pedidos. Usar estado local sencillo con Signals/RxJS según convenga; no añadir una librería global de estado para este alcance.
 - Usar polling periódico para refrescar el estado. SignalR queda como mejora opcional si hay tiempo después de completar los requisitos obligatorios. Se elige polling porque el enunciado lo acepta expresamente, el panel solo necesita refrescar el estado de pedidos y el plazo de entrega es de 24 horas. Requiere menos código, configuración, manejo de conexiones e integración/pruebas. Para la carga pequeña de la prueba, su costo operativo es aceptable; la contrapartida es que el cambio aparece en el siguiente ciclo de consulta, no en tiempo real, y el cliente consulta periódicamente aunque no haya cambios.
 
 ## Requisitos técnicos obligatorios
@@ -56,17 +81,19 @@ Este documento recoge los requisitos funcionales del enunciado y las decisiones 
 - En el entorno de Compose se usará SQL Server.
 - Se utilizará una única base de datos llamada `PruebaQ10Tienda` para simplificar la ejecución de la prueba.
 - Orders será dueño de las tablas del esquema `Orders`; Inventory será dueño de las tablas del esquema `Inventory`.
-- Cada servicio tendrá su propio `DbContext` y sus propias migraciones. Un servicio no debe consultar ni modificar directamente las tablas propiedad del otro.
-- No crear claves foráneas entre servicios/esquemas para representar relaciones de negocio entre pedidos y stock. La coordinación entre servicios ocurre mediante mensajes.
-- Documentar que compartir una base de datos física es un compromiso de simplicidad para esta prueba; en un sistema con mayor necesidad de aislamiento, cada servicio podría tener una base independiente.
+- Cada servicio tendrá su propio `DbContext` y sus propias migraciones. Inventory es dueño de las escrituras de su esquema. Como trade-off de simplicidad, Orders puede hacer una consulta de solo lectura al dato de catálogo necesario para validar la existencia de un SKU; no puede modificar stock ni usar esa consulta para reservarlo.
+- Configurar una tabla de historial de migraciones independiente para cada contexto, dentro de su propio esquema (por ejemplo `Orders.__EFMigrationsHistory` e `Inventory.__EFMigrationsHistory`). No permitir que ambos contextos compartan la tabla de historial predeterminada en `dbo`.
+- No crear claves foráneas entre servicios/esquemas para representar relaciones de negocio entre pedidos y stock. La reserva y los cambios de estado se coordinan mediante mensajes.
+- Documentar ambos trade-offs: la base física compartida y la lectura de catálogo desde Orders simplifican la prueba, pero acoplan parcialmente Orders al esquema de Inventory. En un sistema con mayor necesidad de aislamiento, cada servicio tendría su propia base y la validación de catálogo se resolvería mediante un contrato entre servicios.
 
 ### Esquema y scripts SQL
 
 - Las migraciones de EF Core son la fuente de verdad para el esquema de cada servicio; evitar definir y mantener el mismo modelo en migraciones y scripts SQL manuales paralelos.
 - Generar scripts SQL idempotentes desde las migraciones y versionarlos para inspección y ejecución reproducible.
 - Mantener un script de bootstrap `01_CreateDatabase.sql` separado para crear `PruebaQ10Tienda`, ya que la creación de la base precede a la aplicación de migraciones.
-- Generar y versionar scripts SQL idempotentes de migraciones por contexto, por ejemplo `02_OrdersSchema.sql` y `03_InventorySchema.sql`. Estos scripts contienen la creación/evolución de tablas, esquemas, índices y restricciones definida por EF Core; no se mantienen como SQL manual paralelo.
-- Compose debe iniciar SQL Server, esperar a que esté listo y ejecutar un inicializador que aplique `01_CreateDatabase.sql`, luego los scripts de migración de Orders e Inventory. Después podrán iniciar API y Worker.
+- Mantener `02_CreateSchemas.sql` como bootstrap idempotente para los esquemas `Orders` e `Inventory`.
+- Generar los scripts SQL idempotentes desde las migraciones por contexto, por ejemplo `03_OrdersSchema.sql` y `04_InventorySchema.sql`. Estos scripts contienen la creación/evolución de tablas, índices y restricciones definida por EF Core; no se mantienen como SQL manual paralelo.
+- Compose debe iniciar SQL Server, esperar a que esté listo y ejecutar un inicializador que aplique `01_CreateDatabase.sql`, `02_CreateSchemas.sql` y después los scripts generados de Orders e Inventory. Después podrán iniciar API y Worker.
 - El seed de inventario debe ser idempotente y pertenecer a Inventory. Al iniciar una base vacía debe insertar al menos tres SKU; reiniciar el sistema no debe duplicarlos ni reponer stock ya consumido.
 - La nomenclatura de scripts debe reflejar el orden real. Para este enfoque no se requiere un `04_InsertData.sql`: Inventory realiza el seed idempotente desde su propio código tras la inicialización del esquema.
 - Usar migraciones para PK, índices, restricciones `UNIQUE` y `CHECK`. Ejemplos de invariantes: SKU único, cantidad de pedido dentro de 1..100 y stock no negativo.
@@ -75,9 +102,9 @@ Este documento recoge los requisitos funcionales del enunciado y las decisiones 
 
 ### Configuración local y Compose
 
-- Compose es el entorno de ejecución reproducible para el evaluador. El flujo esperado será documentar un único comando, normalmente `docker compose up --build`.
-- Dentro de Compose, las aplicaciones se conectan a SQL Server usando el nombre de servicio de Compose, no `localhost` ni `\.\SQLEXPRESS`.
-- La instancia local `\.\SQLEXPRESS` puede utilizarse para desarrollo fuera de Compose, pero el flujo verificado para la entrega será SQL Server en Compose.
+- Compose es el entorno de ejecución reproducible para el evaluador. El flujo debe permitir el comando de aceptación exacto `docker compose up`; declarar `build:` en los servicios para que Compose construya las imágenes al no existir localmente. `--build` puede documentarse como opción para forzar una reconstrucción.
+- Dentro de Compose, las aplicaciones se conectan a SQL Server usando el nombre de servicio de Compose, no `localhost` ni la instancia local `.\SQLEXPRESS`.
+- La instancia local `.\SQLEXPRESS` puede utilizarse para desarrollo fuera de Compose, pero el flujo verificado para la entrega será SQL Server en Compose.
 - Usar un volumen nombrado para persistir datos durante reinicios normales.
 - Documentar `docker compose down -v` como la operación para eliminar el volumen y recrear una base limpia con migraciones y seed.
 - Los secretos de demostración requeridos por los contenedores deben suministrarse mediante variables de entorno o un archivo local no versionado; nunca codificarlos en los proyectos.
@@ -94,7 +121,7 @@ Este documento recoge los requisitos funcionales del enunciado y las decisiones 
 
 ## Criterios de aceptación
 
-- Un único `docker compose up --build` inicia el sistema, inicializa la base y el seed, y deja disponibles los servicios y el panel sin pasos manuales de base de datos.
+- Un único `docker compose up` inicia el sistema, construye las imágenes en un checkout limpio, inicializa la base y el seed, y deja disponibles los servicios y el panel sin pasos manuales de base de datos.
 - El panel permite crear un pedido válido y verlo avanzar de `Pending` a `Confirmed` o `Rejected` mediante polling.
 - Los errores de validación se muestran claramente en el panel.
 - Procesar dos veces el mismo `OrderCreated` descuenta stock una sola vez.
