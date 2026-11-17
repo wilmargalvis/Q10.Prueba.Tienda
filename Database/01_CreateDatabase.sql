@@ -1,0 +1,4 @@
+IF DB_ID(N'PruebaQ10Tienda') IS NULL
+BEGIN
+    EXEC(N'CREATE DATABASE [PruebaQ10Tienda]');
+END;

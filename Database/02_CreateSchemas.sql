@@ -1,0 +1,2 @@
+IF SCHEMA_ID(N'Orders') IS NULL EXEC(N'CREATE SCHEMA [Orders]');
+IF SCHEMA_ID(N'Inventory') IS NULL EXEC(N'CREATE SCHEMA [Inventory]');
