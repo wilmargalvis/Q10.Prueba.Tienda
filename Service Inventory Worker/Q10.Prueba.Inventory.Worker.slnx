@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="../Q10.Prueba.Tienda.Contracts/Q10.Prueba.Tienda.Contracts.csproj" />
   <Project Path="Q10.Prueba.Inventory.Dominio/Q10.Prueba.Inventory.Dominio.csproj" />
   <Project Path="Q10.Prueba.Inventory.Infraestructura/Q10.Prueba.Inventory.Infraestructura.csproj" />
   <Project Path="Q10.Prueba.Inventory.Worker.Test/Q10.Prueba.Inventory.Worker.Test.csproj" />

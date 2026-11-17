@@ -9,12 +9,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="MassTransit.RabbitMQ" Version="8.3.6" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
-    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.24.1-preview.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Q10.Prueba.Inventory.Dominio\Q10.Prueba.Inventory.Dominio.csproj" />
     <ProjectReference Include="..\Q10.Prueba.Inventory.Infraestructura\Q10.Prueba.Inventory.Infraestructura.csproj" />
+    <ProjectReference Include="..\..\Q10.Prueba.Tienda.Contracts\Q10.Prueba.Tienda.Contracts.csproj" />
   </ItemGroup>
 </Project>
