@@ -1,30 +1,11 @@
-# Consulte https://aka.ms/customizecontainer para aprender a personalizar su contenedor de depuración y cómo Visual Studio usa este Dockerfile para compilar sus imágenes para una depuración más rápida.
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY . .
+RUN dotnet restore "Service Orders API/Q10.Prueba.Tienda.Api/Q10.Prueba.Tienda.Api.csproj"
+RUN dotnet publish "Service Orders API/Q10.Prueba.Tienda.Api/Q10.Prueba.Tienda.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# Esta fase se usa cuando se ejecuta desde VS en modo rápido (valor predeterminado para la configuración de depuración)
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
-USER $APP_UID
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 EXPOSE 8080
-EXPOSE 8081
-
-
-# Esta fase se usa para compilar el proyecto de servicio
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-ARG BUILD_CONFIGURATION=Release
-WORKDIR /src
-COPY ["Q10.Prueba.Tienda.Api/Q10.Prueba.Tienda.Api.csproj", "Q10.Prueba.Tienda.Api/"]
-RUN dotnet restore "./Q10.Prueba.Tienda.Api/Q10.Prueba.Tienda.Api.csproj"
-COPY . .
-WORKDIR "/src/Q10.Prueba.Tienda.Api"
-RUN dotnet build "./Q10.Prueba.Tienda.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
-
-# Esta fase se usa para publicar el proyecto de servicio que se copiará en la fase final.
-FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./Q10.Prueba.Tienda.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
-
-# Esta fase se usa en producción o cuando se ejecuta desde VS en modo normal (valor predeterminado cuando no se usa la configuración de depuración)
-FROM base AS final
-WORKDIR /app
-COPY --from=publish /app/publish .
+COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "Q10.Prueba.Tienda.Api.dll"]
